@@ -1,26 +1,26 @@
 [Plymouth Theme]
 Name=BGRT
-Description=BGRT Boot Theme
+Description=ACPI BGRT Logo
 ModuleName=two-step
 
 [two-step]
-Font=Mono 12
-TitleFont=Mono 30
-ImageDir=
+Font=Sans 12
+TitleFont=Sans 30
+ImageDir=/usr/share/plymouth/themes/%PLYMOUTH_THEME%
 DialogHorizontalAlignment=.5
 DialogVerticalAlignment=.382
 TitleHorizontalAlignment=.5
 TitleVerticalAlignment=.382
 HorizontalAlignment=.5
-VerticalAlignment=.7
+VerticalAlignment=.80
 WatermarkHorizontalAlignment=.5
-WatermarkVerticalAlignment=.96
+WatermarkVerticalAlignment=.98
 Transition=none
 TransitionDuration=0.0
-BackgroundStartColor=0x000000
-BackgroundEndColor=0x000000
-ProgressBarBackgroundColor=0x606060
-ProgressBarForegroundColor=0xffffff
+BackgroundStartColor=0x212121
+BackgroundEndColor=0x212121
+ProgressBarBackgroundColor=0x616161
+ProgressBarForegroundColor=0xfafafa
 DialogClearsFirmwareBackground=true
 MessageBelowAnimation=true
 

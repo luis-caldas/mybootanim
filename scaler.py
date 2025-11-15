@@ -17,13 +17,13 @@ import config
 
 
 def iprint(*strin, success=False) -> None:
-    print("[ %s %s %s ]" % (
+    print("[%s %s %s]" % (
         "\033[93;1m" if not success else "\033[92;1m",
         "!" if not success else "✓", "\033[0m"
     ), *strin)
 
 
-def build_android(default_assets_path, distribute_path, bottom_imgs):
+def build_android(local_path, default_assets_path, distribute_path, bottom_imgs):
     iprint("Loading resolutions")
 
     # Store the different types of top images
@@ -42,7 +42,7 @@ def build_android(default_assets_path, distribute_path, bottom_imgs):
             WandLibrary.MagickSetBackgroundColor(
                 top_img.wand, background_color.resource
             )
-        top_img.read(filename=os.path.join(default_assets_path, "top.png"))
+        top_img.read(filename=os.path.join(local_path, config.LOGO_IMAGE))
         # Needs to be a square
         top_img.resize(top_size, top_size)
 
@@ -101,7 +101,7 @@ def build_android(default_assets_path, distribute_path, bottom_imgs):
             "%d %d %d" % (
                 each["list"][0].width,
                 each["list"][0].height,
-                config.REFRESH_RATE
+                config.RESOLUTIONS[name][2]
             ),
             "%c %d %d %s" % ('p', 0, 0, config.FOLDER_NAME)
         )
@@ -142,7 +142,7 @@ def build_android(default_assets_path, distribute_path, bottom_imgs):
     iprint("Done Android", success=True)
 
 
-def build_plymouth(default_assets_path, default_script_path, distribute_path, bottom_imgs):
+def build_plymouth(local_path, default_assets_path, default_script_path, default_extras_path, distribute_path, bottom_imgs):
     iprint("Creating plymouth theme")
 
     # Create the folder
@@ -151,7 +151,7 @@ def build_plymouth(default_assets_path, default_script_path, distribute_path, bo
         shutil.rmtree(plym)
     os.makedirs(plym)
 
-    # Copy files over
+    # Copy throbber files over
     for each_file in os.listdir(default_assets_path):
 
         # Get the full path of the file
@@ -159,62 +159,103 @@ def build_plymouth(default_assets_path, default_script_path, distribute_path, bo
 
         # Check if is a file
         if os.path.isfile(full_file_name):
-            # Create a proper name for it
-            fixed_name = re.sub(r"0+([1-9])", r"\1", each_file)
 
-            # Copy over
-            shutil.copy(
-                full_file_name,
-                os.path.join(plym, fixed_name)
-            )
+            # Fix names
+            throbbed_fixed = re.sub(config.PLYMOUTH_THROBBER, "throbber-", each_file)
+
+            # Reassign
+            src = full_file_name
+            dst = os.path.join(plym, throbbed_fixed)
+
+            # Check if links
+            if os.path.islink(src):
+                os.symlink(os.readlink(src), dst)
+            else:
+                # Copy over
+                shutil.copy(src,dst)
+
+    # Copy extra files over
+    for each_file in os.listdir(default_extras_path):
+
+        # Get the full path of the file
+        full_file_name = os.path.join(default_extras_path, each_file)
+
+        # Check if is a file
+        if os.path.isfile(full_file_name):
+
+            # Reassign
+            src = full_file_name
+            dst = os.path.join(plym, each_file)
+
+            # Check if links
+            if os.path.islink(src):
+                os.symlink(os.readlink(src), dst)
+            else:
+                # Copy over
+                shutil.copy(src, dst)
+
+    # Resize the logo
+    top_img = WandImage()
+    with WandColor("transparent") as background_color:
+        WandLibrary.MagickSetBackgroundColor(
+            top_img.wand, background_color.resource
+        )
+    top_img.read(filename=os.path.join(local_path, config.LOGO_IMAGE))
+    # Needs to be a square
+    top_img.resize(config.LOGO_SIZE, config.LOGO_SIZE)
+    top_img.save(filename=os.path.join(plym, config.LOGO_IMAGE))
 
     # Replace and copy over the main plymouth file
     original_name = f"{config.DEFAULT_THEME}.plymouth"
     target_name = f"{config.PLYMOUTH_THEME}.plymouth"
-    with open(os.path.join(default_script_path, original_name), 'r') as original:
+    file_path = os.path.join(default_script_path, original_name)
+    if os.path.isfile(file_path):
+        with open(file_path, 'r') as original:
 
-        # Read the entire file
-        file_text = original.read()
+            # Read the entire file
+            file_text = original.read()
 
-        # Replace everything
-        for repl_name, repl_value in config.REPLACE_PLYMOUTH.items():
-            file_text = re.sub(
-                f"{config.FIND_CHAR}{repl_name}{config.FIND_CHAR}",
-                repl_value,
-                file_text
-            )
+            # Replace everything
+            for repl_name, repl_value in config.REPLACE_PLYMOUTH.items():
+                file_text = re.sub(
+                    f"{config.FIND_CHAR}{repl_name}{config.FIND_CHAR}",
+                    repl_value,
+                    file_text
+                )
 
-        # Open the target
-        with open(os.path.join(plym, target_name), 'w') as target:
-            # Write it
-            target.write(file_text)
+            # Open the target
+            with open(os.path.join(plym, target_name), 'w') as target:
+                # Write it
+                target.write(file_text)
 
     # Replace and copy over the main script file
     original_name = f"{config.DEFAULT_THEME}.script"
     target_name = f"{config.PLYMOUTH_THEME}.script"
-    with open(os.path.join(default_script_path, original_name), 'r') as original:
+    file_path = os.path.join(default_script_path, original_name)
+    if os.path.isfile(file_path):
+        with open(file_path, 'r') as original:
 
-        # Read the entire file
-        file_text = original.read()
+            # Read the entire file
+            file_text = original.read()
 
-        # Add manual values
-        replace_all = {
-            "NUM_IMAGES": str(len(bottom_imgs)),
-            **config.REPLACE_SCRIPT
-        }
+            # Add manual values
+            replace_all = {
+                "NUM_IMAGES": str(len(bottom_imgs)),
+                **config.REPLACE_SCRIPT
+            }
 
-        # Replace everything
-        for repl_name, repl_value in replace_all.items():
-            file_text = re.sub(
-                f"{config.FIND_CHAR}{repl_name}{config.FIND_CHAR}",
-                repl_value,
-                file_text
-            )
+            # Replace everything
+            for repl_name, repl_value in replace_all.items():
+                file_text = re.sub(
+                    f"{config.FIND_CHAR}{repl_name}{config.FIND_CHAR}",
+                    repl_value,
+                    file_text
+                )
 
-        # Open the target
-        with open(os.path.join(plym, target_name), 'w') as target:
-            # Write it
-            target.write(file_text)
+            # Open the target
+            with open(os.path.join(plym, target_name), 'w') as target:
+                # Write it
+                target.write(file_text)
 
     iprint("Done Plymouth", success=True)
 
@@ -244,19 +285,22 @@ def main():
     default_script_path = os.path.join(
         local_path, "assets", "scripts"
     )
+    default_extras_path = os.path.join(
+        local_path, "assets", "extra"
+    )
     distribute_path = os.path.join(
         local_path, config.DISTRIBUTE
     )
 
-    # Get all the bottom images
+    # Get all the images
     bottom_imgs = sorted([name for name in os.listdir(default_assets_path) if "bottom" in name])
 
     # Call functions
     if args.system in [default_argument, config.ANDROID_FOLDER]:
-        build_android(default_assets_path, distribute_path, bottom_imgs)
+        build_android(local_path, default_assets_path, distribute_path, bottom_imgs)
 
     if args.system in [default_argument, config.PLYMOUTH_FOLDER]:
-        build_plymouth(default_assets_path, default_script_path, distribute_path, bottom_imgs)
+        build_plymouth(local_path, default_assets_path, default_script_path, default_extras_path, distribute_path, bottom_imgs)
 
 
 if __name__ == "__main__":
