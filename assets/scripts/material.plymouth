@@ -27,6 +27,7 @@ MessageBelowAnimation=true
 [boot-up]
 UseEndAnimation=false
 UseFirmwareBackground=true
+SuppressMessages=true
 
 [shutdown]
 UseEndAnimation=false
